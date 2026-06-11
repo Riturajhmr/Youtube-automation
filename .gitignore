@@ -1,0 +1,134 @@
+# =========================
+
+# Dependencies
+
+# =========================
+
+node_modules/
+**/node_modules/
+
+# =========================
+
+# Next.js
+
+# =========================
+
+.next/
+out/
+build/
+
+# =========================
+
+# Python
+
+# =========================
+
+**pycache**/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+
+.venv/
+venv/
+env/
+ENV/
+
+# =========================
+
+# Environment Variables
+
+# =========================
+
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# =========================
+
+# Logs
+
+# =========================
+
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =========================
+
+# Database Files
+
+# =========================
+
+*.sqlite
+*.sqlite3
+*.db
+
+# =========================
+
+# IDEs
+
+# =========================
+
+.vscode/
+.idea/
+
+# =========================
+
+# OS Files
+
+# =========================
+
+.DS_Store
+Thumbs.db
+
+# =========================
+
+# Coverage & Testing
+
+# =========================
+
+coverage/
+.pytest_cache/
+htmlcov/
+
+# =========================
+
+# Build Artifacts
+
+# =========================
+
+dist/
+target/
+
+# =========================
+
+# Uploads & Temp Files
+
+# =========================
+
+tmp/
+temp/
+uploads/
+
+# =========================
+
+# Cache
+
+# =========================
+
+.cache/
+.parcel-cache/
+
+# =========================
+
+# Misc
+
+# =========================
+
+*.swp
+*.swo

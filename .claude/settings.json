@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "env": {}
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/rituraj/Documents/AI Automation/TubeFlow-Global"
+      ],
+      "env": {}
+    },
+    "git": {
+      "command": "npx",
+      "args": ["-y", "@cyanheads/git-mcp-server"],
+      "env": {
+        "GIT_REPO_PATH": "/Users/rituraj/Documents/AI Automation/TubeFlow-Global",
+        "LOG_LEVEL": "info"
+      }
+    }
+  }
+}
