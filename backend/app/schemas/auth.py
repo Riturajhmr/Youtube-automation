@@ -24,6 +24,8 @@ class UserCreate(BaseModel):
     def password_length(cls, v: str) -> str:
         if len(v) < 8:
             raise ValueError("Password must be at least 8 characters")
+        if len(v) > 64:
+            raise ValueError("Password must be 64 characters or fewer")
         return v
 
     @field_validator("email")

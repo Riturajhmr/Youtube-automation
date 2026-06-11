@@ -29,7 +29,7 @@ export default function SignInPage() {
     setServerError(null);
     try {
       await login(data);
-      router.push("/settings");
+      router.push("/dashboard");
     } catch (err) {
       setServerError(
         err instanceof Error ? err.message : "Invalid email or password"

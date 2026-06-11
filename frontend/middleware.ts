@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const AUTH_ROUTES = ["/sign-in", "/sign-up"];
-const PROTECTED_ROUTES = ["/settings"];
+const PROTECTED_ROUTES = ["/dashboard", "/upload", "/settings"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -18,7 +18,7 @@ export function middleware(request: NextRequest) {
 
   if (isAuthRoute && token) {
     const url = request.nextUrl.clone();
-    url.pathname = "/settings";
+    url.pathname = "/dashboard";
     return NextResponse.redirect(url);
   }
 
@@ -26,5 +26,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/sign-in", "/sign-up", "/settings/:path*"],
+  matcher: ["/sign-in", "/sign-up", "/dashboard/:path*", "/upload/:path*", "/settings/:path*"],
 };

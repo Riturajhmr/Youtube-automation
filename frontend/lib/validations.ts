@@ -93,6 +93,30 @@ export const transcriptFileSchema = z.object({
     }),
 });
 
+export const signInSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(1, "Password is required"),
+});
+
+export type SignInFormValues = z.infer<typeof signInSchema>;
+
+export const signUpSchema = z
+  .object({
+    full_name: z.string().min(2, "Full name must be at least 2 characters").trim(),
+    email: z.string().email("Invalid email address"),
+    password: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .max(64, "Password must be 64 characters or fewer"),
+    confirm_password: z.string(),
+  })
+  .refine((d) => d.password === d.confirm_password, {
+    message: "Passwords do not match",
+    path: ["confirm_password"],
+  });
+
+export type SignUpFormValues = z.infer<typeof signUpSchema>;
+
 export function parseKeywords(raw: string): string[] {
   if (!raw.trim()) return [];
   const seen = new Set<string>();

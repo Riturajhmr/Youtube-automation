@@ -12,8 +12,9 @@ from starlette.requests import Request
 
 from app.api.routes import metadata as metadata_routes
 from app.api.routes import video as video_routes
+from app.api.routes import auth as auth_routes
 from app.core.config import get_settings
-from app.core.exceptions import MetadataGenerationError, VideoProcessingError, VideoUploadError
+from app.core.exceptions import AuthenticationError, MetadataGenerationError, VideoProcessingError, VideoUploadError
 from app.core.logging import get_logger, setup_logging
 from app.middleware.request_id import RequestIDMiddleware
 from app.schemas.health import HealthResponse
@@ -95,6 +96,15 @@ async def _handle_video_processing_error(
             "detail": exc.message,
             "code": exc.code,
         },
+    )
+
+
+async def _handle_authentication_error(
+    request: Request, exc: AuthenticationError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=401,
+        content={"error": "Unauthorized", "detail": exc.message, "code": exc.code},
     )
 
 
@@ -188,6 +198,7 @@ def create_app() -> FastAPI:
 
     # --- Routers ---
 
+    app.include_router(auth_routes.router, prefix="/api/v1")
     app.include_router(metadata_routes.router, prefix="/api/v1")
     app.include_router(video_routes.router, prefix="/api/v1")
 
@@ -203,6 +214,7 @@ def create_app() -> FastAPI:
 
     # --- Exception handlers (M5: registered via add_exception_handler, not decorators) ---
 
+    app.add_exception_handler(AuthenticationError, _handle_authentication_error)  # type: ignore[arg-type]
     app.add_exception_handler(MetadataGenerationError, _handle_metadata_generation_error)  # type: ignore[arg-type]
     app.add_exception_handler(VideoUploadError, _handle_video_upload_error)  # type: ignore[arg-type]
     app.add_exception_handler(VideoProcessingError, _handle_video_processing_error)  # type: ignore[arg-type]

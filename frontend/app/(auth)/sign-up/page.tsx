@@ -33,7 +33,7 @@ export default function SignUpPage() {
         email: data.email,
         password: data.password,
       });
-      router.push("/settings");
+      router.push("/dashboard");
     } catch (err) {
       setServerError(
         err instanceof Error ? err.message : "Registration failed. Please try again."

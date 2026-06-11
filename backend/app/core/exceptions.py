@@ -46,3 +46,13 @@ class VideoProcessingError(TubeFlowError):
     ) -> None:
         super().__init__(message, code)
         self.stage = stage
+
+
+class AuthenticationError(TubeFlowError):
+    def __init__(self, message: str, code: str = "AUTHENTICATION_ERROR") -> None:
+        super().__init__(message, code)
+
+
+class ConflictError(TubeFlowError):
+    def __init__(self, message: str, code: str = "CONFLICT_ERROR") -> None:
+        super().__init__(message, code)

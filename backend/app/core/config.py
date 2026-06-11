@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "uploads"
     MAX_VIDEO_SIZE_MB: int = 2048  # 2 GB expressed in MB; multiply by 1024*1024 for bytes
 
+    DATABASE_URL: str = "postgresql+asyncpg://localhost/tubeflow"
+    JWT_SECRET_KEY: str = "change-me-in-production"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
