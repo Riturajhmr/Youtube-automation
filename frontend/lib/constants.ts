@@ -3,13 +3,32 @@ export const API_BASE_URL = "/api/backend";
 
 // Direct base: browser → FastAPI (bypasses Next.js 10 MB body limit for video uploads)
 export const DIRECT_API_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+  process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8001";
 
 export const ENDPOINTS = {
   // Small JSON — safe through the Next.js proxy
   METADATA_GENERATE: `${API_BASE_URL}/api/v1/metadata/generate`,
   // Large multipart — goes directly to FastAPI, skipping the proxy
   VIDEO_UPLOAD: `${DIRECT_API_URL}/api/v1/videos/upload`,
+  // YouTube — authenticated JSON through the proxy
+  YOUTUBE_CREDENTIALS: `${API_BASE_URL}/api/v1/youtube/credentials`,
+  YOUTUBE_CONNECT: `${API_BASE_URL}/api/v1/youtube/connect`,
+  YOUTUBE_ACCOUNT: `${API_BASE_URL}/api/v1/youtube/account`,
+  YOUTUBE_DISCONNECT: `${API_BASE_URL}/api/v1/youtube/disconnect`,
+  YOUTUBE_PUBLISH: `${API_BASE_URL}/api/v1/youtube/publish`,
+  YOUTUBE_PLAYLISTS: `${API_BASE_URL}/api/v1/youtube/playlists`,
+  YOUTUBE_PLAYLISTS_SYNC: `${API_BASE_URL}/api/v1/youtube/playlists/sync`,
+  YOUTUBE_CHANNELS_PENDING: `${API_BASE_URL}/api/v1/youtube/channels/pending`,
+  YOUTUBE_CHANNELS_SELECT: `${API_BASE_URL}/api/v1/youtube/channels/select`,
+  YOUTUBE_CATEGORIES: `${API_BASE_URL}/api/v1/youtube/categories`,
+  // History — authenticated JSON through the proxy
+  HISTORY_LIST: `${API_BASE_URL}/api/v1/history`,
+  HISTORY_ITEM: (id: string) => `${API_BASE_URL}/api/v1/history/${id}`,
+  // Workflows — authenticated JSON through the proxy
+  WORKFLOWS: `${API_BASE_URL}/api/v1/workflows`,
+  WORKFLOW: (id: string) => `${API_BASE_URL}/api/v1/workflows/${id}`,
+  WORKFLOW_DEFAULT: `${API_BASE_URL}/api/v1/workflows/default`,
+  WORKFLOW_SET_DEFAULT: (id: string) => `${API_BASE_URL}/api/v1/workflows/${id}/default`,
 } as const;
 
 export const TRANSCRIPT_MIN_LENGTH = 50;

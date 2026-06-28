@@ -5,6 +5,11 @@ export interface VideoUploadResponse {
   filename: string;
   status: "processed";
   metadata: MetadataGenerateResponse;
+  content_type: "video" | "short";
+  duration_seconds: number | null;
+  width: number | null;
+  height: number | null;
+  aspect_ratio: string | null;
 }
 
 export type UploadState =

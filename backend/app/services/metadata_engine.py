@@ -10,7 +10,7 @@ from pydantic import ValidationError
 
 from app.core.exceptions import MetadataGenerationError
 from app.core.logging import get_logger
-from app.prompts.metadata_prompt import build_metadata_prompt
+from app.prompts.metadata_prompt import build_enhanced_analysis_prompt, build_metadata_prompt
 from app.schemas.metadata import ChannelProfile, MetadataGenerateRequest, MetadataGenerateResponse
 from app.services.ai_provider import AIProvider
 
@@ -226,6 +226,37 @@ class ContentProfile:
     source_breakdown: dict = field(default_factory=dict)
 
 
+# --- In-memory analysis dataclasses (never persisted to database) ---
+
+@dataclass
+class VisualAnalysis:
+    visual_style: str
+    content_type: str
+    visual_theme: str
+    estimated_niche: str
+    people_present: bool
+    text_present: bool
+    scene_summary: str
+
+
+@dataclass
+class ContentClassification:
+    type: str
+    confidence: float
+
+
+@dataclass
+class VideoSummary:
+    summary: str
+    main_topics: list
+    keywords: list
+    entities: list
+    audience: str
+    tone: str
+    genre: str
+    language: str
+
+
 class MetadataEngine:
     def __init__(self, ai_provider: AIProvider) -> None:
         self._provider = ai_provider
@@ -234,11 +265,90 @@ class MetadataEngine:
         self,
         request: MetadataGenerateRequest,
         frames: Optional[List[bytes]] = None,
+        *,
+        is_short: bool = False,
+        detected_language: Optional[str] = None,
     ) -> MetadataGenerateResponse:
+        """
+        Generate YouTube metadata.
+
+        When frames are provided (upload path), uses the enhanced analysis
+        pipeline: visual analysis + content classification + video summary +
+        metadata in a single AI call.
+
+        When frames are absent (direct /metadata/generate API call), falls
+        back to the legacy keyword-signal-based path — behaviour unchanged.
+        """
+        if frames:
+            return await self._generate_enhanced(
+                request, frames, is_short=is_short, detected_language=detected_language
+            )
+        return await self._generate_legacy(request, is_short=is_short)
+
+    async def _generate_enhanced(
+        self,
+        request: MetadataGenerateRequest,
+        frames: List[bytes],
+        *,
+        is_short: bool = False,
+        detected_language: Optional[str] = None,
+    ) -> MetadataGenerateResponse:
+        """Enhanced path: single AI call that analyses frames and generates metadata."""
+        import time
+        t_start = time.monotonic()
+
+        channel_profile_json: Optional[str] = None
+        if request.channel_profile:
+            channel_profile_json = request.channel_profile.model_dump_json(indent=2)
+
+        system_msg, prompt = build_enhanced_analysis_prompt(
+            transcript=request.transcript,
+            title_hint=request.title_hint,
+            target_keywords=request.target_keywords,
+            video_description=request.video_description,
+            extra_context=request.extra_context,
+            channel_profile_json=channel_profile_json,
+            detected_language_hint=detected_language,
+            frame_count=len(frames),
+            is_short=is_short,
+        )
+
+        logger.info(
+            "Calling AI provider (enhanced analysis)",
+            extra={
+                "provider": self._provider.provider_name,
+                "frame_count": len(frames),
+                "detected_language_whisper": detected_language,
+                "has_title_hint": bool(request.title_hint),
+                "has_keywords": bool(request.target_keywords),
+                "has_description": bool(request.video_description),
+            },
+        )
+
+        try:
+            raw_response = await asyncio.wait_for(
+                self._provider.complete(prompt, system=system_msg, frames=frames),
+                timeout=_PROVIDER_TIMEOUT_SECONDS,
+            )
+        except asyncio.TimeoutError as exc:
+            raise MetadataGenerationError(
+                message=f"AI provider did not respond within {_PROVIDER_TIMEOUT_SECONDS}s.",
+                stage="_generate_enhanced",
+            ) from exc
+
+        return self._parse_enhanced_response(raw_response, t_start)
+
+    async def _generate_legacy(
+        self,
+        request: MetadataGenerateRequest,
+        *,
+        is_short: bool = False,
+    ) -> MetadataGenerateResponse:
+        """Legacy path: keyword-signal content profile + text-only AI call."""
         content = self._analyze_content(request.transcript)
 
         # Build the content profile — user context is applied here with priority ordering
-        profile = self._build_content_profile(request, content, frames)
+        profile = self._build_content_profile(request, content, None)
 
         user_signal = _user_signal_from_request(request)
         niche = self._detect_niche(content, request.channel_profile, user_signal)
@@ -257,14 +367,6 @@ class MetadataEngine:
         if request.channel_profile:
             channel_profile_json = request.channel_profile.model_dump_json(indent=2)
 
-        visual_context: Optional[str] = None
-        if frames:
-            n = len(frames)
-            visual_context = (
-                f"{n} frame{'s' if n != 1 else ''} extracted from the video "
-                f"are included above as images."
-            )
-
         prompt = build_metadata_prompt(
             transcript=request.transcript,
             intent=ctx.intent,
@@ -273,7 +375,7 @@ class MetadataEngine:
             duration_minutes=ctx.content.estimated_duration_minutes,
             title_hint=request.title_hint,
             channel_profile_json=channel_profile_json,
-            visual_context=visual_context,
+            visual_context=None,
             video_description=request.video_description,
             extra_context=request.extra_context,
             content_type=profile.content_type,
@@ -281,33 +383,29 @@ class MetadataEngine:
             mood=profile.mood,
             language=profile.language,
             target_keywords_raw=request.target_keywords,
+            is_short=is_short,
         )
 
         logger.info(
-            "Calling AI provider",
+            "Calling AI provider (legacy)",
             extra={
                 "provider": self._provider.provider_name,
                 "niche": ctx.niche,
                 "intent": ctx.intent,
                 "content_type": profile.content_type,
                 "mood": profile.mood,
-                "frame_count": len(frames) if frames else 0,
             },
         )
 
-        provider_kwargs: dict[str, object] = {}
-        if frames:
-            provider_kwargs["frames"] = frames
-
         try:
             raw_response = await asyncio.wait_for(
-                self._provider.complete(prompt, **provider_kwargs),
+                self._provider.complete(prompt),
                 timeout=_PROVIDER_TIMEOUT_SECONDS,
             )
         except asyncio.TimeoutError as exc:
             raise MetadataGenerationError(
                 message=f"AI provider did not respond within {_PROVIDER_TIMEOUT_SECONDS}s.",
-                stage="generate_metadata",
+                stage="_generate_legacy",
             ) from exc
 
         return self._parse_response(raw_response)
@@ -616,6 +714,88 @@ class MetadataEngine:
                 message=f"AI response failed pre-validation: {'; '.join(failures)}",
                 stage="_validate_raw_metadata",
             )
+
+    def _parse_enhanced_response(self, raw: str, t_start: float) -> MetadataGenerateResponse:
+        """Parse the enhanced AI response (contains visual_analysis + metadata + more)."""
+        import time
+
+        logger.debug(
+            "Enhanced raw response received",
+            extra={"raw_response_preview": raw[:500], "raw_response_length": len(raw)},
+        )
+
+        cleaned = self._clean_raw(raw)
+        data = self._try_json_parse(cleaned)
+
+        if data is None:
+            repaired = self._repair_json(cleaned)
+            data = self._try_json_parse(repaired) or self._extract_json_object(repaired)
+
+        if data is None:
+            raise MetadataGenerationError(
+                message=(
+                    f"Enhanced AI response could not be parsed as JSON. "
+                    f"Response preview: {raw[:200]!r}"
+                ),
+                stage="_parse_enhanced_response",
+            )
+
+        # Extract the metadata sub-block; gracefully fall back for PlaceholderProvider
+        # which returns flat {title, description, tags} without the enhanced wrapper
+        metadata_block = data.get("metadata")
+        if not isinstance(metadata_block, dict):
+            logger.warning(
+                "Enhanced response missing 'metadata' key — falling back to flat metadata parsing",
+                extra={"keys_present": list(data.keys())},
+            )
+            metadata_block = data
+
+        # Log all analysis fields for debugging and future optimisation
+        visual = data.get("visual_analysis") or {}
+        classification = data.get("content_classification") or {}
+        summary = data.get("video_summary") or {}
+        ai_language = data.get("detected_language", "unknown")
+        elapsed = round(time.monotonic() - t_start, 2)
+
+        logger.info(
+            "Enhanced analysis complete",
+            extra={
+                "content_type_classified": classification.get("type", "unknown"),
+                "classification_confidence": classification.get("confidence", 0.0),
+                "detected_language_ai": ai_language,
+                "visual_style": visual.get("visual_style", "unknown"),
+                "estimated_niche": visual.get("estimated_niche", "unknown"),
+                "people_present": visual.get("people_present"),
+                "text_present": visual.get("text_present"),
+                "scene_summary": (visual.get("scene_summary") or "")[:200],
+                "video_summary_preview": (summary.get("summary") or "")[:200],
+                "main_topics": summary.get("main_topics", []),
+                "audience": summary.get("audience", ""),
+                "tone": summary.get("tone", ""),
+                "genre": summary.get("genre", ""),
+                "metadata_generation_seconds": elapsed,
+            },
+        )
+
+        self._validate_raw_metadata(metadata_block)
+
+        try:
+            result = MetadataGenerateResponse(**metadata_block)
+            logger.info(
+                "Enhanced metadata generated successfully",
+                extra={
+                    "title_len": len(result.title),
+                    "tag_count": len(result.tags),
+                    "desc_len": len(result.description),
+                    "total_seconds": elapsed,
+                },
+            )
+            return result
+        except (ValueError, ValidationError) as exc:
+            raise MetadataGenerationError(
+                message=f"Enhanced metadata schema validation failed ({type(exc).__name__}): {exc}",
+                stage="_parse_enhanced_response",
+            ) from exc
 
     def _parse_response(self, raw: str) -> MetadataGenerateResponse:
         logger.debug(

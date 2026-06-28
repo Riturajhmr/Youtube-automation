@@ -56,3 +56,31 @@ class AuthenticationError(TubeFlowError):
 class ConflictError(TubeFlowError):
     def __init__(self, message: str, code: str = "CONFLICT_ERROR") -> None:
         super().__init__(message, code)
+
+
+class YouTubeCredentialError(TubeFlowError):
+    """Raised for bad/missing credential input (400/409)."""
+
+    def __init__(self, message: str, code: str = "YOUTUBE_CREDENTIAL_ERROR") -> None:
+        super().__init__(message, code)
+
+
+class YouTubeConnectionError(TubeFlowError):
+    """Raised when the OAuth flow or YouTube API call fails (500)."""
+
+    def __init__(self, message: str, code: str = "YOUTUBE_CONNECTION_ERROR") -> None:
+        super().__init__(message, code)
+
+
+class YouTubePublishError(TubeFlowError):
+    """Raised when video publishing to YouTube fails."""
+
+    def __init__(self, message: str, code: str = "YOUTUBE_PUBLISH_ERROR") -> None:
+        super().__init__(message, code)
+
+
+class YouTubePlaylistError(TubeFlowError):
+    """Raised when playlist sync or YouTube Playlists API interaction fails."""
+
+    def __init__(self, message: str, code: str = "YOUTUBE_PLAYLIST_ERROR") -> None:
+        super().__init__(message, code)

@@ -5,7 +5,9 @@ import logging
 import re
 import tempfile
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -19,10 +21,17 @@ _MUSIC_VIDEO_FALLBACK = (
 _NO_SPEECH_THRESHOLD = 0.6
 
 
+@dataclass
+class TranscriptResult:
+    """Output of transcript extraction — text plus the language Whisper detected."""
+    text: str
+    detected_language: Optional[str]  # BCP-47 code e.g. "hi", "en", "ur"; None if unknown
+
+
 class TranscriptService(ABC):
     @abstractmethod
-    async def extract(self, video_path: Path, video_id: str) -> str:
-        """Extract or generate a transcript string from a video file."""
+    async def extract(self, video_path: Path, video_id: str) -> TranscriptResult:
+        """Extract or generate a transcript from a video file."""
 
     @property
     @abstractmethod
@@ -42,7 +51,7 @@ class PlaceholderTranscriptService(TranscriptService):
     def service_name(self) -> str:
         return "placeholder"
 
-    async def extract(self, video_path: Path, video_id: str) -> str:
+    async def extract(self, video_path: Path, video_id: str) -> TranscriptResult:
         stem = video_path.stem
         humanized = re.sub(r"[_\-]+", " ", stem).strip()
         transcript = (
@@ -53,7 +62,7 @@ class PlaceholderTranscriptService(TranscriptService):
         )
         while len(transcript) < 50:
             transcript += " Additional placeholder content."
-        return transcript
+        return TranscriptResult(text=transcript, detected_language=None)
 
 
 class WhisperTranscriptService(TranscriptService):
@@ -85,15 +94,15 @@ class WhisperTranscriptService(TranscriptService):
     def service_name(self) -> str:
         return f"whisper-{self._model_size}"
 
-    async def extract(self, video_path: Path, video_id: str) -> str:
+    async def extract(self, video_path: Path, video_id: str) -> TranscriptResult:
         loop = asyncio.get_event_loop()
         wav_path: Path | None = None
         try:
             wav_path = await self._extract_audio(video_path, video_id)
-            transcript = await loop.run_in_executor(
+            result = await loop.run_in_executor(
                 None, self._transcribe, wav_path
             )
-            return transcript
+            return result
         finally:
             if wav_path and wav_path.exists():
                 try:
@@ -137,13 +146,15 @@ class WhisperTranscriptService(TranscriptService):
 
         return wav_path
 
-    def _transcribe(self, wav_path: Path) -> str:
+    def _transcribe(self, wav_path: Path) -> TranscriptResult:
         """Run Whisper inference synchronously (called in executor)."""
-        segments_iter, _ = self._model.transcribe(
+        segments_iter, info = self._model.transcribe(
             str(wav_path),
             beam_size=5,
             vad_filter=True,
         )
+
+        detected_language: Optional[str] = getattr(info, "language", None)
 
         texts: list[str] = []
         for segment in segments_iter:
@@ -157,9 +168,9 @@ class WhisperTranscriptService(TranscriptService):
                 "Whisper found no speech (transcript length %d) — using music fallback",
                 len(transcript),
             )
-            return _MUSIC_VIDEO_FALLBACK
+            return TranscriptResult(text=_MUSIC_VIDEO_FALLBACK, detected_language=detected_language)
 
-        return transcript
+        return TranscriptResult(text=transcript, detected_language=detected_language)
 
 
 def create_transcript_service(

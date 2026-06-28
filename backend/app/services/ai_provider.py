@@ -145,10 +145,12 @@ class OpenAIProvider(AIProvider):
         return f"openai/{self._MODEL}"
 
     async def complete(self, prompt: str, **kwargs: object) -> str:
+        system_override: Optional[str] = kwargs.get("system", None)  # type: ignore[assignment]
+        active_system = system_override if system_override is not None else self._SYSTEM_MESSAGE
         response = await self._client.chat.completions.create(
             model=self._MODEL,
             messages=[
-                {"role": "system", "content": self._SYSTEM_MESSAGE},
+                {"role": "system", "content": active_system},
                 {"role": "user", "content": prompt},
             ],
             temperature=0.7,
@@ -173,7 +175,7 @@ class AnthropicProvider(AIProvider):
         "Respond ONLY with a valid JSON object — no markdown, no code fences, "
         "no commentary before or after the JSON."
     )
-    _MAX_FRAMES = 3
+    _MAX_FRAMES = 12
 
     def __init__(self, api_key: str, model: str = "claude-sonnet-4-6") -> None:
         self._api_key = api_key
@@ -195,10 +197,17 @@ class AnthropicProvider(AIProvider):
         from typing import List as _List
 
         frames: _List[bytes] = list(kwargs.get("frames", []))  # type: ignore[arg-type]
+        system_override: Optional[str] = kwargs.get("system", None)  # type: ignore[assignment]
+        active_system = system_override if system_override is not None else self._SYSTEM_MESSAGE
+
+        # Evenly sample frames when more than _MAX_FRAMES are provided
+        if len(frames) > self._MAX_FRAMES:
+            step = len(frames) / self._MAX_FRAMES
+            frames = [frames[int(i * step)] for i in range(self._MAX_FRAMES)]
 
         content: list[dict[str, object]] = []
 
-        for frame_bytes in frames[: self._MAX_FRAMES]:
+        for frame_bytes in frames:
             b64 = base64.b64encode(frame_bytes).decode("utf-8")
             content.append(
                 {
@@ -217,7 +226,7 @@ class AnthropicProvider(AIProvider):
         message = await client.messages.create(
             model=self._model,
             max_tokens=4096,
-            system=self._SYSTEM_MESSAGE,
+            system=active_system,
             messages=[{"role": "user", "content": content}],
         )
 

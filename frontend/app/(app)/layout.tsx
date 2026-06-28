@@ -42,6 +42,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <span className="font-bold text-white text-sm tracking-tight">TubeFlow</span>
           </Link>
 
+          <nav className="hidden sm:flex items-center gap-1">
+            <Link
+              href="/history"
+              className="text-sm text-zinc-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
+            >
+              History
+            </Link>
+            <Link
+              href="/workflows"
+              className="text-sm text-zinc-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
+            >
+              Workflows
+            </Link>
+          </nav>
+
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-full bg-zinc-700 flex items-center justify-center">

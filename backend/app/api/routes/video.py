@@ -83,8 +83,10 @@ async def upload_video(
 
     # Read thumbnail bytes
     thumbnail_bytes: Optional[bytes] = None
+    thumbnail_content_type: Optional[str] = None
     if thumbnail and thumbnail.filename:
         thumbnail_bytes = await thumbnail.read()
+        thumbnail_content_type = thumbnail.content_type or None
 
     context = VideoUploadContext(
         title_hint=title_hint or None,
@@ -93,6 +95,7 @@ async def upload_video(
         extra_context=extra_context or None,
         provided_transcript=provided_transcript,
         thumbnail_bytes=thumbnail_bytes,
+        thumbnail_content_type=thumbnail_content_type,
     )
 
     return await service.process(file, context)

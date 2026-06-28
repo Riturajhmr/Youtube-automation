@@ -23,6 +23,9 @@ interface UseUploadWorkflowReturn {
   result: MetadataGenerateResponse | null;
   videoId: string | null;
   error: WorkflowError | null;
+  contentType: "video" | "short";
+  durationSeconds: number | null;
+  aspectRatio: string | null;
   start: (formData: UploadFormData) => Promise<void>;
   reset: () => void;
 }
@@ -33,6 +36,9 @@ export function useUploadWorkflow(): UseUploadWorkflowReturn {
   const [result, setResult] = useState<MetadataGenerateResponse | null>(null);
   const [videoId, setVideoId] = useState<string | null>(null);
   const [error, setError] = useState<WorkflowError | null>(null);
+  const [contentType, setContentType] = useState<"video" | "short">("video");
+  const [durationSeconds, setDurationSeconds] = useState<number | null>(null);
+  const [aspectRatio, setAspectRatio] = useState<string | null>(null);
   const abortRef = useRef(false);
 
   const reset = useCallback(() => {
@@ -42,6 +48,9 @@ export function useUploadWorkflow(): UseUploadWorkflowReturn {
     setResult(null);
     setVideoId(null);
     setError(null);
+    setContentType("video");
+    setDurationSeconds(null);
+    setAspectRatio(null);
   }, []);
 
   const start = useCallback(
@@ -54,6 +63,9 @@ export function useUploadWorkflow(): UseUploadWorkflowReturn {
       setResult(null);
       setVideoId(null);
       setError(null);
+      setContentType("video");
+      setDurationSeconds(null);
+      setAspectRatio(null);
 
       // Upload the video with all context — backend handles transcript, metadata generation
       const uploadResponse = await uploadVideo(
@@ -81,10 +93,13 @@ export function useUploadWorkflow(): UseUploadWorkflowReturn {
 
       setVideoId(uploadResponse.data.video_id);
       setResult(uploadResponse.data.metadata);
+      setContentType(uploadResponse.data.content_type ?? "video");
+      setDurationSeconds(uploadResponse.data.duration_seconds ?? null);
+      setAspectRatio(uploadResponse.data.aspect_ratio ?? null);
       setPhase("reviewing");
     },
     []
   );
 
-  return { phase, uploadProgress, result, videoId, error, start, reset };
+  return { phase, uploadProgress, result, videoId, error, contentType, durationSeconds, aspectRatio, start, reset };
 }

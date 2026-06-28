@@ -1,13 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { Upload, Settings, Wand2 } from "lucide-react";
+import { Upload, Settings, Wand2, Film, Zap } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useHistory } from "@/hooks/useHistory";
 
 export default function DashboardPage() {
   const { user } = useAuth();
 
   const firstName = user?.full_name.split(" ")[0] ?? "there";
+
+  const { data: videoData } = useHistory({ page: 1, page_size: 1, filter: "video" });
+  const { data: shortData } = useHistory({ page: 1, page_size: 1, filter: "short" });
+
+  const videoCount = videoData?.total ?? 0;
+  const shortCount = shortData?.total ?? 0;
 
   return (
     <div>
@@ -50,8 +57,37 @@ export default function DashboardPage() {
         </Link>
       </div>
 
+      {/* Analytics Cards */}
+      <div className="mt-8 grid grid-cols-2 gap-4 max-w-xl">
+        <Link
+          href="/history"
+          className="group bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-xl p-5 transition-all"
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-zinc-800 group-hover:bg-zinc-700 flex items-center justify-center transition-colors">
+              <Film className="w-4 h-4 text-zinc-300" />
+            </div>
+            <span className="text-xs font-medium text-zinc-400">Videos Published</span>
+          </div>
+          <p className="text-2xl font-bold text-white">{videoCount}</p>
+        </Link>
+
+        <Link
+          href="/history"
+          className="group bg-zinc-900 border border-zinc-800 hover:border-red-700/40 rounded-xl p-5 transition-all"
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-red-900/30 group-hover:bg-red-900/50 flex items-center justify-center transition-colors">
+              <Zap className="w-4 h-4 text-red-400" />
+            </div>
+            <span className="text-xs font-medium text-zinc-400">Shorts Published</span>
+          </div>
+          <p className="text-2xl font-bold text-white">{shortCount}</p>
+        </Link>
+      </div>
+
       {/* Hint */}
-      <div className="mt-10 flex items-start gap-3 bg-zinc-900/60 border border-zinc-800 rounded-xl p-5 max-w-xl">
+      <div className="mt-8 flex items-start gap-3 bg-zinc-900/60 border border-zinc-800 rounded-xl p-5 max-w-xl">
         <Wand2 className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
         <p className="text-zinc-400 text-sm leading-relaxed">
           <span className="text-white font-medium">Get started:</span> Upload a video to generate

@@ -23,15 +23,18 @@ class Settings(BaseSettings):
     FRAME_EXTRACTION_SERVICE: str = "ffmpeg"  # "ffmpeg" | "placeholder"
     WHISPER_MODEL_SIZE: str = "base"          # tiny | base | small | medium | large-v2
 
-    CORS_ORIGINS: List[str] = ["http://localhost:3000"]
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:3001"]
 
     UPLOAD_DIR: str = "uploads"
     MAX_VIDEO_SIZE_MB: int = 2048  # 2 GB expressed in MB; multiply by 1024*1024 for bytes
 
-    DATABASE_URL: str = "postgresql+asyncpg://localhost/tubeflow"
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/tubeflow"
     JWT_SECRET_KEY: str = "change-me-in-production"
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+
+    YOUTUBE_REDIRECT_URI: str = "http://localhost:8000/api/v1/youtube/callback"
+    FRONTEND_URL: str = "http://localhost:3000"
 
     model_config = SettingsConfigDict(
         env_file=".env",

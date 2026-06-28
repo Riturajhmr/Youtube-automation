@@ -66,6 +66,7 @@ export default function VideoUploadPage() {
             initialMetadata={result.metadata}
             videoId={result.video_id}
             filename={result.filename}
+            thumbnailFile={null}
           />
           <Button variant="outline" onClick={reset} className="w-full">
             Upload Another Video

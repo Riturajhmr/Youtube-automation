@@ -13,10 +13,26 @@ logger = logging.getLogger(__name__)
 _SHORT_VIDEO_SECONDS = 3.0
 
 
+def _compute_frame_count(duration: float) -> int:
+    """Return the optimal number of frames to extract based on video duration."""
+    if duration < 60:
+        return 6
+    elif duration < 300:   # 1–5 min
+        return 12
+    elif duration < 900:   # 5–15 min
+        return 20
+    else:
+        return 30
+
+
 class FrameExtractionService(ABC):
     @abstractmethod
-    async def extract_frames(self, video_path: Path, num_frames: int = 3) -> List[bytes]:
-        """Extract representative frames from a video file as raw JPEG bytes."""
+    async def extract_frames(self, video_path: Path, num_frames: int = 0) -> List[bytes]:
+        """Extract representative frames from a video file as raw JPEG bytes.
+
+        num_frames=0 (default) triggers automatic count based on video duration.
+        Pass a positive integer to override.
+        """
 
     @property
     @abstractmethod
@@ -36,7 +52,7 @@ class PlaceholderFrameExtractionService(FrameExtractionService):
     def service_name(self) -> str:
         return "placeholder"
 
-    async def extract_frames(self, video_path: Path, num_frames: int = 3) -> List[bytes]:
+    async def extract_frames(self, video_path: Path, num_frames: int = 0) -> List[bytes]:
         return []
 
 
@@ -46,8 +62,9 @@ class FFmpegFrameExtractionService(FrameExtractionService):
 
     Steps:
     1. ffprobe to get video duration.
-    2. Calculate evenly-spaced timestamps.
-    3. Concurrently extract one JPEG frame per timestamp.
+    2. Calculate frame count dynamically (6/12/20/30 based on duration) unless overridden.
+    3. Distribute timestamps evenly from 2% to 98% of video to avoid black frames.
+    4. Concurrently extract one JPEG frame per timestamp.
 
     Per-frame failures are logged and skipped (non-fatal). A complete ffprobe
     failure returns an empty list so the pipeline can continue without visual
@@ -58,18 +75,31 @@ class FFmpegFrameExtractionService(FrameExtractionService):
     def service_name(self) -> str:
         return "ffmpeg-frames"
 
-    async def extract_frames(self, video_path: Path, num_frames: int = 3) -> List[bytes]:
+    async def extract_frames(self, video_path: Path, num_frames: int = 0) -> List[bytes]:
         duration = await self._get_duration(video_path)
         if duration is None:
             logger.warning("ffprobe could not determine duration for %s — skipping frames", video_path.name)
             return []
 
+        actual = num_frames if num_frames > 0 else _compute_frame_count(duration)
+
+        logger.info(
+            "Frame extraction: %d frames for %.1fs video (%s)",
+            actual,
+            duration,
+            video_path.name,
+            extra={"frame_count": actual, "duration_seconds": round(duration, 1)},
+        )
+
         if duration < _SHORT_VIDEO_SECONDS:
             timestamps = [duration / 2.0]
+        elif actual == 1:
+            timestamps = [duration * 0.50]
         else:
+            # Distribute evenly from 2% to 98% — avoids black frames at start/end
             timestamps = [
-                duration * i / (num_frames + 1)
-                for i in range(1, num_frames + 1)
+                duration * (0.02 + 0.96 * i / (actual - 1))
+                for i in range(actual)
             ]
 
         results = await asyncio.gather(

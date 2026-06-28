@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -14,3 +14,8 @@ class VideoUploadResponse(BaseModel):
     filename: str = Field(description="Original filename as provided by the client")
     status: Literal["processed"]
     metadata: MetadataGenerateResponse
+    content_type: Literal["video", "short"] = "video"
+    duration_seconds: Optional[float] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    aspect_ratio: Optional[str] = None
